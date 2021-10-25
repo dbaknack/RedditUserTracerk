@@ -1,25 +1,37 @@
-function Get-Subs {
+function Get-UDFsubredditsubscribers{
     param (
         [string[]]$subReddit
     )
     begin{
-
+        #check to see if we are already tracking this subreddit
+        if(Test-Path .\subredditsTracker){
+            $ifSubredditsExist = $true
+        }else{
+            $ifSubredditsExist = $false
+            Write-Verbose -Message "creating 'subredditsTracker...'" -Verbose
+            New-Item -Path .\ -Name 'subredditsTracker'
+        }
     }
     process{
         foreach($sub in $subReddit){
-                $subname = $sub
-                $date = (get-date).ToString("yyyy-MM-dd HH:mm:ss")
-                $redditAddress1 = "https://www.reddit.com/r/{0}/about.json"
-                $redditAddress2 = $redditAddress1 -f $sub
-                $completedsersults = Invoke-WebRequest -Uri $redditAddress2
-               $total =  (($completedsersults | ConvertFrom-Json).data).subscribers
-               write-host "$subname, $total, $date"
+            $aboutPage  = "https://www.reddit.com/r/{0}/about.json" -f $sub
+            $pageData   = ((Invoke-WebRequest -Uri $aboutPage).content | ConvertFrom-Json).data
+            $objectHash = [PSCustomObject]@{
+                subname     = $pageData.display_name
+                activeusers = $pageData.active_user_count
+                subscribers = $pageData.subscribers
+                datetime    = (get-date).ToString("yyyy-MM-dd HH:mm:ss")
             }
         }
-    end{
 
+        if($ifSubredditsExist){
+            foreach ($line in $objectHash){
+                add-content -value $line  -Path .\subredditsTracker
+            }
+        }
     }
 }
-$date = get-date
 
-cls;(get-subs -subReddit 'nucypher','KeepNetwork','thresholdnetwork')
+Get-UDFsubredditsubscribers -subReddit 'nucypher','keepNetwork','wallstreetbets'
+
+
